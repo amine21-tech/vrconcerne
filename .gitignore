@@ -10,13 +10,16 @@ out/
 .env.local
 .env.*.local
 
-# Capacitor / Android build output
-apps/web/android/
+# Capacitor : le projet natif Android est commite (config de signature,
+# permissions du manifeste...) — seuls ses artefacts de build sont ignores,
+# via android/.gitignore genere par `npx cap add android`.
 apps/web/ios/
+local.properties
 
 # Signing keys — never commit
 *.jks
 *.keystore
+keystore.properties
 
 # Build output
 dist/

@@ -1,13 +1,31 @@
+import { Capacitor } from '@capacitor/core';
+import { Preferences } from '@capacitor/preferences';
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3101';
 
 const TOKEN_KEY = 'vrconcerne_token';
 
-export function getToken(): string | null {
+/**
+ * Le jeton vit dans le stockage natif securise (@capacitor/preferences) sur
+ * Android/iOS, et dans localStorage sur le web — Capacitor n'existe pas hors
+ * d'une coquille native, donc `isNativePlatform()` renvoie toujours false
+ * pendant `next dev`/`npm run web:dev`.
+ */
+export async function getToken(): Promise<string | null> {
+  if (Capacitor.isNativePlatform()) {
+    const { value } = await Preferences.get({ key: TOKEN_KEY });
+    return value;
+  }
   if (typeof window === 'undefined') return null;
   return window.localStorage.getItem(TOKEN_KEY);
 }
 
-export function setToken(token: string | null): void {
+export async function setToken(token: string | null): Promise<void> {
+  if (Capacitor.isNativePlatform()) {
+    if (token) await Preferences.set({ key: TOKEN_KEY, value: token });
+    else await Preferences.remove({ key: TOKEN_KEY });
+    return;
+  }
   if (typeof window === 'undefined') return;
   if (token) window.localStorage.setItem(TOKEN_KEY, token);
   else window.localStorage.removeItem(TOKEN_KEY);
@@ -42,7 +60,7 @@ export async function apiFetch<T>(path: string, options: RequestOptions = {}): P
   }
 
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-  const token = auth ? getToken() : null;
+  const token = auth ? await getToken() : null;
   if (token) headers.Authorization = `Bearer ${token}`;
 
   const response = await fetch(url.toString(), {

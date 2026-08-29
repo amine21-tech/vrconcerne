@@ -2,9 +2,20 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { X, MapPin, Calendar, Clock, Users, ChevronRight, ExternalLink } from 'lucide-react';
+import { Capacitor } from '@capacitor/core';
+import { Browser } from '@capacitor/browser';
 import { EventItem, TicketItem } from '../types';
 import { formatDate, qrPatternFromCode } from '../lib/data';
 import { apiFetch, ApiError } from '../lib/apiClient';
+
+/** Ouvre la page de paiement hebergee : onglet systeme sur Android/iOS, nouvel onglet sur le web. */
+async function openCheckout(url: string): Promise<void> {
+  if (Capacitor.isNativePlatform()) {
+    await Browser.open({ url });
+  } else {
+    window.open(url, '_blank', 'noopener,noreferrer');
+  }
+}
 
 const STEPS = ['Détails', 'Billets', 'Paiement', 'Confirmation'];
 const POLL_INTERVAL_MS = 3000;
@@ -31,6 +42,20 @@ export default function BookingModal({ event, onClose, onConfirm }: BookingModal
   const maxQty = Math.min(10, event.availableSeats);
 
   useEffect(() => () => stopPolling(), []);
+
+  // Sur Android/iOS, l'onglet systeme (Chrome Custom Tabs) envoie cet
+  // evenement des que l'utilisateur le ferme pour revenir a l'app : on en
+  // profite pour verifier le paiement tout de suite plutot que d'attendre le
+  // prochain intervalle de sondage.
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+    const listenerPromise = Browser.addListener('browserFinished', () => {
+      if (bookingId) checkBookingStatus(bookingId);
+    });
+    return () => {
+      listenerPromise.then((l) => l.remove());
+    };
+  }, [bookingId]);
 
   const stopPolling = () => {
     if (pollTimer.current) {
@@ -71,7 +96,7 @@ export default function BookingModal({ event, onClose, onConfirm }: BookingModal
         body: { eventId: event.id, quantity },
       });
       setBookingId(res.bookingId);
-      window.open(res.checkoutUrl, '_blank', 'noopener,noreferrer');
+      await openCheckout(res.checkoutUrl);
 
       setWaitingPayment(true);
       pollDeadline.current = Date.now() + POLL_TIMEOUT_MS;

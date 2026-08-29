@@ -24,15 +24,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const token = getToken();
-    if (!token) {
-      setLoading(false);
-      return;
-    }
-    apiFetch<AuthUser>('/auth/me')
-      .then(setUser)
-      .catch(() => setToken(null))
-      .finally(() => setLoading(false));
+    let cancelled = false;
+    getToken().then((token) => {
+      if (!token) {
+        if (!cancelled) setLoading(false);
+        return;
+      }
+      apiFetch<AuthUser>('/auth/me')
+        .then((u) => !cancelled && setUser(u))
+        .catch(() => setToken(null))
+        .finally(() => !cancelled && setLoading(false));
+    });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const login = useCallback(async (email: string, password: string) => {
@@ -41,7 +46,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       body: { email, password },
       auth: false,
     });
-    setToken(res.token);
+    await setToken(res.token);
     setUser(res.user);
   }, []);
 
@@ -57,14 +62,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         body: input,
         auth: false,
       });
-      setToken(res.token);
+      await setToken(res.token);
       setUser(res.user);
     },
     [],
   );
 
   const logout = useCallback(() => {
-    setToken(null);
+    void setToken(null);
     setUser(null);
   }, []);
 

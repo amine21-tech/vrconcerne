@@ -100,6 +100,30 @@ Le prototype initial (voir historique Git) tournait entièrement côté client :
 
 ## Application Android (Capacitor)
 
-À venir en Phase 4 : export statique Next.js empaqueté avec Capacitor. Voir
-le plan de réécriture pour le détail (icône, signature de release, script de
-build).
+`apps/web` est exporté en statique (`output: 'export'`) et empaqueté par
+Capacitor dans `apps/web/android/`. L'appli ne contient aucun serveur
+Next.js à l'exécution : toutes les données passent par `NEXT_PUBLIC_API_URL`,
+qui doit pointer vers l'API de production en HTTPS **avant** de construire
+l'APK (l'export est figé au build, pas au runtime).
+
+Prérequis sur la machine de build (pas dans ce dépôt) : JDK 17+ et le SDK
+Android (variable `ANDROID_HOME`, ou `android/local.properties`).
+
+```powershell
+cd apps\web
+cp .env.example .env.local   # puis renseigner NEXT_PUBLIC_API_URL en production
+.\build-apk.ps1              # APK de release (non signe sans keystore, voir android/KEYSTORE.md)
+.\build-apk.ps1 -Debug       # APK de debug, installable directement pour tester
+```
+
+À faire avant publication :
+
+- **Signature** : suivre `apps/web/android/KEYSTORE.md` pour générer un
+  keystore et le déclarer dans `apps/web/android/keystore.properties`
+  (jamais commité).
+- **Icône/splash** : l'app utilise encore l'icône générique de Capacitor.
+  Remplacer `apps/web/android/app/src/main/res/mipmap-*` (ou utiliser
+  `npx @capacitor/assets generate` avec un vrai logo) avant publication.
+- **CORS** : en production, `CORS_ORIGINS` côté API doit inclure
+  `https://localhost` (l'origine que Capacitor donne à l'app Android avec
+  `androidScheme: 'https'`).
