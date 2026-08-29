@@ -107,7 +107,7 @@ Next.js à l'exécution : toutes les données passent par `NEXT_PUBLIC_API_URL`,
 qui doit pointer vers l'API de production en HTTPS **avant** de construire
 l'APK (l'export est figé au build, pas au runtime).
 
-Prérequis sur la machine de build (pas dans ce dépôt) : JDK 17+ et le SDK
+Prérequis sur la machine de build (pas dans ce dépôt) : JDK 21+ et le SDK
 Android (variable `ANDROID_HOME`, ou `android/local.properties`).
 
 ```powershell

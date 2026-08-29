@@ -26,7 +26,7 @@ function Assert-Command($name, $hint) {
 
 Write-Host "== Verification des outils ==" -ForegroundColor Cyan
 Assert-Command node "Installez Node.js 20+."
-Assert-Command java "Installez un JDK 17+ (nécessaire pour Gradle)."
+Assert-Command java "Installez un JDK 21+ (nécessaire pour Gradle et le module capacitor-android)."
 
 if (-not (Test-Path "$PSScriptRoot\android")) {
   Write-Error "Le dossier android/ n'existe pas. Lancez d'abord : npx cap add android"

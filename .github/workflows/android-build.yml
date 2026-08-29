@@ -22,10 +22,13 @@ jobs:
           node-version: 22
           cache: npm
 
+      # Le module capacitor-android livre avec @capacitor/android 8.x (compileSdk
+      # 36) compile avec --release 21 : JDK 17 echoue avec "invalid source
+      # release: 21".
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '17'
+          java-version: '21'
           cache: gradle
 
       - name: Installer les dependances
