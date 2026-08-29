@@ -1,30 +1,66 @@
 'use client';
 
-import React, { useState } from 'react';
-import { EventItem, TicketItem } from '../types';
+import React, { useCallback, useEffect, useState } from 'react';
 import { formatDateShort } from '../lib/data';
+import { apiFetch } from '../lib/apiClient';
 
-interface AdminPanelProps {
-  events: EventItem[];
-  tickets: TicketItem[];
-  onApprove: (id: string) => void;
-  onReject: (id: string) => void;
+interface AdminEvent {
+  id: string;
+  title: string;
+  singer: string;
+  emoji: string;
+  date: string;
+  venue: string;
+  wilaya: string;
+  price: number;
+  totalSeats: number;
+  description: string;
+  status: 'pending' | 'published' | 'rejected';
+  organizerName: string;
 }
 
-export default function AdminPanel({ events, tickets, onApprove, onReject }: AdminPanelProps) {
+interface AdminStats {
+  pendingEvents: number;
+  publishedEvents: number;
+  ticketsSold: number;
+  revenue: number;
+  pendingOrganizers: number;
+}
+
+export default function AdminPanel() {
   const [activeTab, setActiveTab] = useState<'pending' | 'published' | 'all'>('pending');
+  const [events, setEvents] = useState<AdminEvent[]>([]);
+  const [stats, setStats] = useState<AdminStats | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const pendingEvents = events.filter((e) => e.status === 'pending');
-  const publishedEvents = events.filter((e) => e.status === 'published');
-  const totalRevenue = tickets.reduce((sum, t) => sum + t.total, 0);
-  const totalTicketsSold = tickets.reduce((sum, t) => sum + t.quantity, 0);
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const status = activeTab === 'all' ? undefined : activeTab;
+      const [eventsRes, statsRes] = await Promise.all([
+        apiFetch<{ items: AdminEvent[] }>('/admin/events', { query: { status } }),
+        apiFetch<AdminStats>('/admin/stats'),
+      ]);
+      setEvents(eventsRes.items);
+      setStats(statsRes);
+    } finally {
+      setLoading(false);
+    }
+  }, [activeTab]);
 
-  const displayedEvents =
-    activeTab === 'pending'
-      ? pendingEvents
-      : activeTab === 'published'
-      ? publishedEvents
-      : events;
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const handleApprove = async (id: string) => {
+    await apiFetch(`/admin/events/${id}/approve`, { method: 'POST' });
+    load();
+  };
+
+  const handleReject = async (id: string) => {
+    await apiFetch(`/admin/events/${id}/reject`, { method: 'POST' });
+    load();
+  };
 
   return (
     <div>
@@ -39,20 +75,20 @@ export default function AdminPanel({ events, tickets, onApprove, onReject }: Adm
 
       <div className="stats-grid">
         <div className="stat-card">
-          <div className="stat-value">{pendingEvents.length}</div>
+          <div className="stat-value">{stats?.pendingEvents ?? '—'}</div>
           <div className="stat-label">En attente</div>
         </div>
         <div className="stat-card">
-          <div className="stat-value">{publishedEvents.length}</div>
+          <div className="stat-value">{stats?.publishedEvents ?? '—'}</div>
           <div className="stat-label">En Ligne</div>
         </div>
         <div className="stat-card">
-          <div className="stat-value">{totalTicketsSold}</div>
+          <div className="stat-value">{stats?.ticketsSold ?? '—'}</div>
           <div className="stat-label">Billets Vendus</div>
         </div>
         <div className="stat-card">
           <div className="stat-value" style={{ fontSize: 18 }}>
-            {(totalRevenue / 1000).toFixed(0)}k DZD
+            {stats ? `${(stats.revenue / 1000).toFixed(0)}k DZD` : '—'}
           </div>
           <div className="stat-label">Recettes</div>
         </div>
@@ -63,30 +99,34 @@ export default function AdminPanel({ events, tickets, onApprove, onReject }: Adm
           className={`admin-tab ${activeTab === 'pending' ? 'active' : ''}`}
           onClick={() => setActiveTab('pending')}
         >
-          En Attente ({pendingEvents.length})
+          En Attente
         </button>
         <button
           className={`admin-tab ${activeTab === 'published' ? 'active' : ''}`}
           onClick={() => setActiveTab('published')}
         >
-          Publiés ({publishedEvents.length})
+          Publiés
         </button>
         <button
           className={`admin-tab ${activeTab === 'all' ? 'active' : ''}`}
           onClick={() => setActiveTab('all')}
         >
-          Tous ({events.length})
+          Tous
         </button>
       </div>
 
       <div style={{ padding: 16 }}>
-        {displayedEvents.length === 0 ? (
+        {loading ? (
+          <div className="empty-state" style={{ padding: 30 }}>
+            <div className="empty-state-title">Chargement...</div>
+          </div>
+        ) : events.length === 0 ? (
           <div className="empty-state" style={{ padding: 30 }}>
             <div className="empty-state-icon">📋</div>
             <div className="empty-state-title">Aucun événement dans cette section</div>
           </div>
         ) : (
-          displayedEvents.map((ev) => (
+          events.map((ev) => (
             <div key={ev.id} className="admin-event-card" id={`admin-card-${ev.id}`}>
               <div className="admin-event-header">
                 <div>
@@ -97,7 +137,7 @@ export default function AdminPanel({ events, tickets, onApprove, onReject }: Adm
                     🎤 {ev.singer} · 📍 {ev.venue}, {ev.wilaya} · 📅 {formatDateShort(ev.date)}
                   </div>
                   <div className="admin-event-meta" style={{ marginTop: 2 }}>
-                    💰 {ev.price.toLocaleString()} DZD · 🎟️ {ev.totalSeats} places
+                    💰 {ev.price.toLocaleString()} DZD · 🎟️ {ev.totalSeats} places · par {ev.organizerName}
                   </div>
                 </div>
                 <span className={`status-badge ${ev.status}`}>{ev.status}</span>
@@ -111,14 +151,14 @@ export default function AdminPanel({ events, tickets, onApprove, onReject }: Adm
                 <div className="admin-actions">
                   <button
                     className="btn-success"
-                    onClick={() => onApprove(ev.id)}
+                    onClick={() => handleApprove(ev.id)}
                     id={`btn-approve-${ev.id}`}
                   >
                     ✅ Approuver & Publier
                   </button>
                   <button
                     className="btn-danger"
-                    onClick={() => onReject(ev.id)}
+                    onClick={() => handleReject(ev.id)}
                     id={`btn-reject-${ev.id}`}
                   >
                     ❌ Refuser

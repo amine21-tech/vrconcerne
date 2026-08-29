@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import Header from './components/Header';
 import BottomNav from './components/BottomNav';
 import StoryTray from './components/StoryTray';
@@ -12,58 +12,35 @@ import TicketList from './components/TicketList';
 import AdminPanel from './components/AdminPanel';
 import ExplorePage from './components/ExplorePage';
 import Toast from './components/Toast';
+import AuthModal from './components/AuthModal';
 
-import { INITIAL_EVENTS, ARTISTS_STORIES } from './lib/data';
-import { EventItem, TicketItem, GenreType, RoleType, ToastMessage, ArtistStory } from './types';
+import { ARTISTS_STORIES } from './lib/data';
+import { apiFetch } from './lib/apiClient';
+import { AuthProvider, useAuth } from './lib/AuthContext';
+import { EventItem, GenreType, ToastMessage, ArtistStory } from './types';
 
-const STORAGE_KEY_EVENTS = 'vrconcerne_events';
-const STORAGE_KEY_TICKETS = 'vrconcerne_tickets';
+function HomeApp() {
+  const { user, loading: authLoading } = useAuth();
 
-export default function Home() {
   const [activeTab, setActiveTab] = useState<string>('home');
-  const [role, setRole] = useState<RoleType>('client');
-  
-  const [events, setEvents] = useState<EventItem[]>(() => {
-    if (typeof window === 'undefined') return INITIAL_EVENTS;
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY_EVENTS);
-      return saved ? JSON.parse(saved) : INITIAL_EVENTS;
-    } catch {
-      return INITIAL_EVENTS;
-    }
-  });
 
-  const [tickets, setTickets] = useState<TicketItem[]>(() => {
-    if (typeof window === 'undefined') return [];
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY_TICKETS);
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
-  });
+  const [homeEvents, setHomeEvents] = useState<EventItem[]>([]);
+  const [exploreEvents, setExploreEvents] = useState<EventItem[]>([]);
+  const [eventsLoading, setEventsLoading] = useState(true);
 
   const [selectedGenre, setSelectedGenre] = useState<GenreType>('Tout');
   const [selectedWilaya, setSelectedWilaya] = useState<string>('Toutes les Wilayas');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [bookingEvent, setBookingEvent] = useState<EventItem | null>(null);
   const [showCreateEvent, setShowCreateEvent] = useState<boolean>(false);
+  const [showAuthModal, setShowAuthModal] = useState<boolean>(false);
   const [stories, setStories] = useState<ArtistStory[]>(ARTISTS_STORIES);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [likedEvents, setLikedEvents] = useState<Record<string, boolean>>({});
   const [bookmarkedEvents, setBookmarkedEvents] = useState<Record<string, boolean>>({});
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem(STORAGE_KEY_EVENTS, JSON.stringify(events));
-    }
-  }, [events]);
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem(STORAGE_KEY_TICKETS, JSON.stringify(tickets));
-    }
-  }, [tickets]);
+  const [ticketsRefreshKey, setTicketsRefreshKey] = useState(0);
+  const [ticketCount, setTicketCount] = useState(0);
+  const [pendingCount, setPendingCount] = useState(0);
 
   const showToast = (msg: string, type: 'success' | 'error' | 'info' = 'info') => {
     const id = Date.now();
@@ -71,57 +48,89 @@ export default function Home() {
     setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 3000);
   };
 
-  const handleReserve = (event: EventItem) => {
-    setBookingEvent(event);
-  };
+  // Fil "Accueil" : re-interroge l'API a chaque changement de filtre plutot
+  // que de filtrer une liste chargee une seule fois en memoire.
+  useEffect(() => {
+    setEventsLoading(true);
+    const handle = setTimeout(() => {
+      apiFetch<{ items: EventItem[] }>('/events', {
+        auth: false,
+        query: {
+          genre: selectedGenre === 'Tout' ? undefined : selectedGenre,
+          wilaya: selectedWilaya === 'Toutes les Wilayas' ? undefined : selectedWilaya,
+          search: searchQuery || undefined,
+        },
+      })
+        .then((res) => setHomeEvents(res.items))
+        .catch(() => showToast('Impossible de charger les événements.', 'error'))
+        .finally(() => setEventsLoading(false));
+    }, 300);
+    return () => clearTimeout(handle);
+  }, [selectedGenre, selectedWilaya, searchQuery]);
 
-  const handleBookingConfirm = (booking: TicketItem) => {
-    setEvents((prev) =>
-      prev.map((e) =>
-        e.id === booking.eventId
-          ? { ...e, availableSeats: Math.max(0, e.availableSeats - booking.quantity) }
-          : e
-      )
-    );
-    setTickets((prev) => [...prev, booking]);
+  // Fil "Explorer" : la grille visuelle complete, sans filtre.
+  useEffect(() => {
+    if (activeTab !== 'explore') return;
+    apiFetch<{ items: EventItem[] }>('/events', { auth: false }).then((res) => setExploreEvents(res.items));
+  }, [activeTab]);
+
+  // Pastilles de la barre de navigation (nombre de billets, evenements en attente).
+  useEffect(() => {
+    if (!user) {
+      setTicketCount(0);
+      setPendingCount(0);
+      return;
+    }
+    apiFetch<{ items: unknown[] }>('/bookings/mine')
+      .then((res) => setTicketCount(res.items.length))
+      .catch(() => {});
+    if (user.role === 'admin') {
+      apiFetch<{ pendingEvents: number }>('/admin/stats')
+        .then((res) => setPendingCount(res.pendingEvents))
+        .catch(() => {});
+    }
+  }, [user, ticketsRefreshKey]);
+
+  const requireAuth = useCallback(
+    (action: () => void) => {
+      if (!user) {
+        setShowAuthModal(true);
+        return;
+      }
+      action();
+    },
+    [user],
+  );
+
+  const handleReserve = (event: EventItem) => requireAuth(() => setBookingEvent(event));
+
+  const handleBookingConfirm = () => {
     setBookingEvent(null);
+    setTicketsRefreshKey((k) => k + 1);
     showToast('🎉 Réservation confirmée ! Bon concert !', 'success');
     setActiveTab('tickets');
   };
 
   const handleCreateEvent = (newEvent: EventItem) => {
-    setEvents((prev) => [...prev, newEvent]);
     setShowCreateEvent(false);
     if (newEvent.status === 'published') {
       showToast('✅ Événement créé et publié avec succès !', 'success');
+      setHomeEvents((prev) => [newEvent, ...prev]);
     } else {
       showToast('✅ Événement soumis ! En attente de validation admin.', 'success');
     }
   };
 
-  const handleAdminApprove = (eventId: string) => {
-    setEvents((prev) =>
-      prev.map((e) => (e.id === eventId ? { ...e, status: 'published' } : e))
-    );
-    showToast('✅ Événement approuvé & publié sur le fil !', 'success');
-  };
-
-  const handleAdminReject = (eventId: string) => {
-    setEvents((prev) =>
-      prev.map((e) => (e.id === eventId ? { ...e, status: 'rejected' } : e))
-    );
-    showToast('❌ Événement refusé.', 'error');
-  };
-
   const handleLike = (eventId: string) => {
-    setLikedEvents((prev) => {
-      const isLiked = !prev[eventId];
-      setEvents((evs) =>
-        evs.map((e) =>
-          e.id === eventId ? { ...e, likes: isLiked ? e.likes + 1 : e.likes - 1 } : e
-        )
+    requireAuth(() => {
+      const isLiked = !likedEvents[eventId];
+      setLikedEvents((prev) => ({ ...prev, [eventId]: isLiked }));
+      setHomeEvents((prev) =>
+        prev.map((e) => (e.id === eventId ? { ...e, likes: e.likes + (isLiked ? 1 : -1) } : e)),
       );
-      return { ...prev, [eventId]: isLiked };
+      apiFetch(`/events/${eventId}/like`, { method: 'POST', body: { liked: isLiked } }).catch(() => {
+        /* l'UI reste optimiste ; un rafraichissement resynchronise en cas d'echec */
+      });
     });
   };
 
@@ -135,29 +144,17 @@ export default function Home() {
 
   const handleTabChange = (tab: string) => {
     if (tab === 'create') {
-      if (role === 'admin') {
+      if (user?.role === 'admin') {
         setActiveTab('admin');
       } else {
-        setShowCreateEvent(true);
+        requireAuth(() => setShowCreateEvent(true));
       }
+    } else if (tab === 'tickets' || tab === 'admin') {
+      requireAuth(() => setActiveTab(tab));
     } else {
       setActiveTab(tab);
     }
   };
-
-  const publishedEvents = events.filter((e) => e.status === 'published');
-
-  const filteredEvents = publishedEvents.filter((e) => {
-    const genreMatch = selectedGenre === 'Tout' || e.genre === selectedGenre;
-    const wilayaMatch = selectedWilaya === 'Toutes les Wilayas' || e.wilaya === selectedWilaya;
-    const searchMatch =
-      !searchQuery ||
-      e.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      e.singer.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      e.wilaya.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      e.genre.toLowerCase().includes(searchQuery.toLowerCase());
-    return genreMatch && wilayaMatch && searchMatch;
-  });
 
   const renderContent = () => {
     switch (activeTab) {
@@ -180,10 +177,12 @@ export default function Home() {
             />
             <div className="section-header">
               <span className="section-title">Cette semaine en Algérie</span>
-              <span className="section-count">{filteredEvents.length} événements</span>
+              <span className="section-count">
+                {eventsLoading ? '...' : `${homeEvents.length} événements`}
+              </span>
             </div>
             <Feed
-              events={filteredEvents}
+              events={homeEvents}
               likedEvents={likedEvents}
               bookmarkedEvents={bookmarkedEvents}
               onReserve={handleReserve}
@@ -193,24 +192,17 @@ export default function Home() {
           </>
         );
       case 'explore':
-        return <ExplorePage events={publishedEvents} onReserve={handleReserve} />;
+        return <ExplorePage events={exploreEvents} onReserve={handleReserve} />;
       case 'tickets':
-        return <TicketList tickets={tickets} events={events} />;
+        return user ? <TicketList key={ticketsRefreshKey} /> : null;
       case 'admin':
-        return role === 'admin' ? (
-          <AdminPanel
-            events={events}
-            tickets={tickets}
-            onApprove={handleAdminApprove}
-            onReject={handleAdminReject}
-          />
+        return user?.role === 'admin' ? (
+          <AdminPanel />
         ) : (
           <div className="empty-state">
             <div className="empty-state-icon">🔒</div>
             <div className="empty-state-title">Accès Refusé</div>
-            <div className="empty-state-text">
-              Passez en mode Admin via la barre supérieure pour accéder au panneau de modération.
-            </div>
+            <div className="empty-state-text">Cette section est réservée aux administrateurs.</div>
           </div>
         );
       default:
@@ -218,25 +210,27 @@ export default function Home() {
     }
   };
 
+  if (authLoading) return null;
+
   return (
     <div className="app-shell">
-      <Header role={role} onRoleChange={setRole} ticketCount={tickets.length} />
+      <Header onRequestAuth={() => setShowAuthModal(true)} />
       <main className="main-content" id="main-content">
         {renderContent()}
       </main>
       <BottomNav
         activeTab={activeTab}
         onTabChange={handleTabChange}
-        role={role}
-        ticketCount={tickets.length}
-        pendingCount={events.filter((e) => e.status === 'pending').length}
+        role={user?.role ?? 'client'}
+        ticketCount={ticketCount}
+        pendingCount={pendingCount}
       />
 
       {showCreateEvent && (
         <CreateEventModal
           onClose={() => setShowCreateEvent(false)}
           onSubmit={handleCreateEvent}
-          role={role}
+          role={user?.role ?? 'client'}
         />
       )}
 
@@ -248,11 +242,23 @@ export default function Home() {
         />
       )}
 
+      {showAuthModal && (
+        <AuthModal onClose={() => setShowAuthModal(false)} onSuccess={() => setShowAuthModal(false)} />
+      )}
+
       <div className="toast-container">
         {toasts.map((toast) => (
           <Toast key={toast.id} msg={toast.msg} type={toast.type} />
         ))}
       </div>
     </div>
+  );
+}
+
+export default function Page() {
+  return (
+    <AuthProvider>
+      <HomeApp />
+    </AuthProvider>
   );
 }

@@ -1,17 +1,36 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Ticket, MapPin, Calendar, X } from 'lucide-react';
-import { TicketItem, EventItem } from '../types';
-import { formatDate } from '../lib/data';
+import { TicketItem } from '../types';
+import { formatDate, qrPatternFromCode } from '../lib/data';
+import { apiFetch } from '../lib/apiClient';
 
-interface TicketListProps {
-  tickets: TicketItem[];
-  events: EventItem[];
-}
+const STATUS_LABELS: Record<string, string> = {
+  pending_payment: 'En attente de paiement',
+  paid: 'Payé',
+  failed: 'Échoué',
+  refunded: 'Remboursé',
+};
 
-export default function TicketList({ tickets }: TicketListProps) {
+export default function TicketList() {
+  const [tickets, setTickets] = useState<TicketItem[]>([]);
+  const [loading, setLoading] = useState(true);
   const [selectedTicket, setSelectedTicket] = useState<TicketItem | null>(null);
+
+  useEffect(() => {
+    apiFetch<{ items: TicketItem[] }>('/bookings/mine')
+      .then((res) => setTickets(res.items))
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="empty-state">
+        <div className="empty-state-title">Chargement de vos billets...</div>
+      </div>
+    );
+  }
 
   if (tickets.length === 0) {
     return (
@@ -32,7 +51,12 @@ export default function TicketList({ tickets }: TicketListProps) {
       </div>
 
       {tickets.map((t) => (
-        <div key={t.id} className="my-ticket-item" onClick={() => setSelectedTicket(t)} id={`ticket-item-${t.id}`}>
+        <div
+          key={t.id}
+          className="my-ticket-item"
+          onClick={() => (t.paymentStatus === 'paid' ? setSelectedTicket(t) : undefined)}
+          id={`ticket-item-${t.id}`}
+        >
           <div className="my-ticket-icon">{t.emoji}</div>
           <div className="my-ticket-info">
             <div className="my-ticket-title">{t.eventTitle}</div>
@@ -43,7 +67,7 @@ export default function TicketList({ tickets }: TicketListProps) {
               📅 {formatDate(t.date)} à {t.time}
             </div>
           </div>
-          <span className="my-ticket-badge">{t.quantity} place{t.quantity > 1 ? 's' : ''}</span>
+          <span className="my-ticket-badge">{STATUS_LABELS[t.paymentStatus] ?? t.paymentStatus}</span>
         </div>
       ))}
 
@@ -59,7 +83,7 @@ export default function TicketList({ tickets }: TicketListProps) {
 
             <div className="ticket-card">
               <div className="ticket-qr">
-                {selectedTicket.qrPattern.map((filled, i) => (
+                {qrPatternFromCode(selectedTicket.confirmCode ?? selectedTicket.id).map((filled, i) => (
                   <div
                     key={i}
                     className="qr-cell"

@@ -2,8 +2,9 @@
 
 import React, { useState } from 'react';
 import { X, Calendar, MapPin, DollarSign, Users, Music } from 'lucide-react';
-import { GENRES, WILAYAS, generateId } from '../lib/data';
+import { GENRES, WILAYAS } from '../lib/data';
 import { EventItem, GenreType, RoleType } from '../types';
+import { apiFetch, ApiError } from '../lib/apiClient';
 
 interface CreateEventModalProps {
   onClose: () => void;
@@ -33,33 +34,40 @@ export default function CreateEventModal({ onClose, onSubmit, role }: CreateEven
     'linear-gradient(135deg, #FBBF24, #F59E0B)',
   ];
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!singer || !title || !venue) return;
 
-    const newEvent: EventItem = {
-      id: generateId(),
-      title,
-      singer,
-      genre,
-      description: description || `Grand concert de ${singer} à ${venue}, ${wilaya}. Festivités estivales 2026 !`,
-      date,
-      time,
-      venue,
-      wilaya,
-      totalSeats: Number(totalSeats),
-      availableSeats: Number(totalSeats),
-      price: Number(price),
-      emoji,
-      bgColor: BG_COLORS[Math.floor(Math.random() * BG_COLORS.length)],
-      likes: 0,
-      status: role === 'admin' ? 'published' : 'pending',
-      organizerId: 'org-' + Date.now(),
-      organizerName: singer + ' Official',
-      createdAt: new Date().toISOString(),
-    };
-
-    onSubmit(newEvent);
+    setSubmitting(true);
+    setError(null);
+    try {
+      const newEvent = await apiFetch<EventItem>('/events', {
+        method: 'POST',
+        body: {
+          title,
+          singer,
+          genre,
+          description:
+            description || `Grand concert de ${singer} à ${venue}, ${wilaya}. Festivités estivales 2026 !`,
+          eventDate: date,
+          eventTime: time,
+          venue,
+          wilaya,
+          totalSeats: Number(totalSeats),
+          price: Number(price),
+          emoji,
+          bgColor: BG_COLORS[Math.floor(Math.random() * BG_COLORS.length)],
+        },
+      });
+      onSubmit(newEvent);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "La création a échoué.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -270,8 +278,14 @@ export default function CreateEventModal({ onClose, onSubmit, role }: CreateEven
             />
           </div>
 
-          <button type="submit" className="btn-primary" id="btn-submit-event">
-            🚀 {role === 'admin' ? 'Publier directement' : 'Soumettre à l\'administration'}
+          {error && (
+            <div style={{ color: 'var(--red, #ef4444)', fontSize: 13, marginBottom: 12 }}>{error}</div>
+          )}
+
+          <button type="submit" className="btn-primary" id="btn-submit-event" disabled={submitting}>
+            {submitting
+              ? 'Envoi en cours...'
+              : `🚀 ${role === 'admin' ? 'Publier directement' : "Soumettre à l'administration"}`}
           </button>
         </form>
       </div>

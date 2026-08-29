@@ -20,11 +20,13 @@ export interface EventItem {
   emoji: string;
   bgColor: string;
   likes: number;
+  featured: boolean;
   status: EventStatus;
   organizerId: string;
-  organizerName: string;
   createdAt: string;
 }
+
+export type PaymentStatus = 'pending_payment' | 'paid' | 'failed' | 'refunded';
 
 export interface TicketItem {
   id: string;
@@ -39,9 +41,9 @@ export interface TicketItem {
   wilaya: string;
   quantity: number;
   total: number;
-  paymentMethod: 'cib' | 'edahabia';
-  confirmCode: string;
-  qrPattern: boolean[];
+  paymentMethod: 'cib' | 'edahabia' | null;
+  paymentStatus: PaymentStatus;
+  confirmCode: string | null;
   bookedAt: string;
 }
 
@@ -51,6 +53,13 @@ export interface ArtistStory {
   emoji: string;
   genre: string;
   seen: boolean;
+}
+
+export interface AuthUser {
+  id: string;
+  displayName: string;
+  role: RoleType;
+  organizerStatus?: 'none' | 'pending' | 'approved' | 'rejected';
 }
 
 export interface ToastMessage {
