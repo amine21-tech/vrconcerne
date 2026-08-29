@@ -1,0 +1,56 @@
+name: Build Android APK
+
+# Compile un APK de debug dans le cloud GitHub — rien a installer sur ta
+# machine, l'equivalent de ce que fait `eas build` pour le projet win-native,
+# mais avec Gradle puisque vrConcerne est en Capacitor et non en Expo.
+#
+# Declenchement manuel (onglet "Actions" du depot -> ce workflow -> "Run
+# workflow"), ou automatique a chaque push sur main.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+
+      - name: Installer les dependances
+        run: npm ci
+
+      # Figee au build : a definir dans Settings -> Secrets and variables ->
+      # Actions -> Variables une fois l'API deployee. Sans ca, l'APK de test
+      # pointe vers localhost et ne pourra pas parler a une vraie API.
+      - name: Build export statique Next.js
+        working-directory: apps/web
+        run: npm run build
+        env:
+          NEXT_PUBLIC_API_URL: ${{ vars.NEXT_PUBLIC_API_URL || 'http://localhost:3101' }}
+
+      - name: Synchroniser Capacitor -> Android
+        working-directory: apps/web
+        run: npx cap sync android
+
+      - name: Compiler l'APK (debug, non signe)
+        working-directory: apps/web/android
+        run: ./gradlew assembleDebug --no-daemon
+
+      - name: Publier l'APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: vrconcerne-debug-apk
+          path: apps/web/android/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 14

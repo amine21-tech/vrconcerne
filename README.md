@@ -117,6 +117,25 @@ cp .env.example .env.local   # puis renseigner NEXT_PUBLIC_API_URL en production
 .\build-apk.ps1 -Debug       # APK de debug, installable directement pour tester
 ```
 
+### Compiler sans Android Studio (GitHub Actions)
+
+Si Android Studio/le SDK ne sont pas installés localement, `.github/workflows/android-build.yml`
+compile un APK de debug (non signé, installable directement) dans le cloud —
+rien à installer sur votre machine, l'équivalent de ce que fait `eas build`
+pour `win-native`, mais avec Gradle puisque ce projet est en Capacitor et
+non en Expo :
+
+1. Poussez ce dépôt sur GitHub (`git push origin main`) si ce n'est pas
+   déjà fait.
+2. Onglet **Actions** du dépôt → *Build Android APK* → *Run workflow*
+   (ou laissez-le se déclencher tout seul au push).
+3. Une fois le run terminé, l'APK est téléchargeable dans la section
+   *Artifacts* de ce run (`vrconcerne-debug-apk`).
+
+Pour que ce build de test parle à une vraie API plutôt qu'à `localhost`,
+définissez la variable de dépôt `NEXT_PUBLIC_API_URL` (Settings → Secrets and
+variables → Actions → Variables) une fois l'API déployée.
+
 À faire avant publication :
 
 - **Signature** : suivre `apps/web/android/KEYSTORE.md` pour générer un
