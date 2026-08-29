@@ -10,7 +10,8 @@ vrConcerne/
 │   ├── api/   API Fastify + PostgreSQL (authentification, événements, réservations, paiement)
 │   └── web/   Application Next.js — la même base sera empaquetée en APK Android (Phase 4)
 ├── package.json         (workspaces racine)
-└── docker-compose.yml    (à ajouter en Phase 5 — déploiement)
+├── docker-compose.yml   (PostgreSQL + API, pour le déploiement)
+└── deploy/              (bloc Nginx pour l'API)
 ```
 
 `packages` n'existe pas ici : c'est un projet à une seule application cliente,
@@ -127,3 +128,22 @@ cp .env.example .env.local   # puis renseigner NEXT_PUBLIC_API_URL en production
 - **CORS** : en production, `CORS_ORIGINS` côté API doit inclure
   `https://localhost` (l'origine que Capacitor donne à l'app Android avec
   `androidScheme: 'https'`).
+
+---
+
+## Déploiement de l'API
+
+L'API tourne en conteneur, avec PostgreSQL dans un second conteneur :
+
+```bash
+cp apps/api/.env.example apps/api/.env   # puis renseigner les secrets
+docker compose up -d --build
+docker compose exec api node dist/src/db/migrate.js
+docker compose exec api node dist/scripts/seed-admin.js -- --email vous@exemple.dz --name "Amiir"
+```
+
+Nginx expose ensuite l'API en HTTPS : voir `deploy/nginx-vrconcerne.conf`
+(bloc à adapter avec votre domaine, puis `certbot --nginx` pour le certificat).
+C'est cette URL HTTPS qui doit être renseignée dans `NEXT_PUBLIC_API_URL`
+avant de construire l'APK, et dans `CHARGILY_WEBHOOK_ENDPOINT`/`APP_RETURN_URL`
+côté Chargily.

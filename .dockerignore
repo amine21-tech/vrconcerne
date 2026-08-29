@@ -1,0 +1,9 @@
+**/node_modules
+**/dist
+**/.next
+**/out
+apps/web/android
+apps/web/ios
+apps/api/.env
+**/*.log
+.git

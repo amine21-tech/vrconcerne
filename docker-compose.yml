@@ -1,0 +1,42 @@
+services:
+  db:
+    image: postgres:17-alpine
+    container_name: vrc_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-vrc}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-vrc}
+      POSTGRES_DB: ${POSTGRES_DB:-vrc}
+    # Jamais expose sur l'exterieur : seul l'hote peut s'y connecter.
+    ports:
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - vrc_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-vrc} -d ${POSTGRES_DB:-vrc}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: vrc_api
+    restart: unless-stopped
+    depends_on:
+      db: { condition: service_healthy }
+    env_file:
+      - ./apps/api/.env
+    environment:
+      # A l'interieur du reseau Docker, la base n'est pas sur 127.0.0.1 mais
+      # sur le nom du service.
+      DATABASE_URL: postgres://${POSTGRES_USER:-vrc}:${POSTGRES_PASSWORD:-vrc}@db:5432/${POSTGRES_DB:-vrc}
+      NODE_ENV: production
+      PORT: 3101
+      HOST: 0.0.0.0
+    ports:
+      - "127.0.0.1:3101:3101"
+
+volumes:
+  vrc_db_data:
