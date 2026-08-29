@@ -9,6 +9,7 @@ import authRoutes from './routes/auth.js';
 import bookingRoutes from './routes/bookings.js';
 import eventRoutes from './routes/events.js';
 import healthRoutes from './routes/health.js';
+import organizerRoutes from './routes/organizers.js';
 import webhookRoutes from './routes/webhooks.js';
 
 declare module 'fastify' {
@@ -64,6 +65,7 @@ export async function buildApp(): Promise<FastifyInstance> {
   await app.register(authRoutes);
   await app.register(eventRoutes);
   await app.register(adminRoutes);
+  await app.register(organizerRoutes);
   await app.register(bookingRoutes);
   await app.register(webhookRoutes);
 

@@ -12,6 +12,8 @@ interface FiltersProps {
   onWilayaChange: (wilaya: string) => void;
   searchQuery: string;
   onSearchChange: (query: string) => void;
+  weekendOnly: boolean;
+  onWeekendToggle: (value: boolean) => void;
 }
 
 export default function Filters({
@@ -21,6 +23,8 @@ export default function Filters({
   onWilayaChange,
   searchQuery,
   onSearchChange,
+  weekendOnly,
+  onWeekendToggle,
 }: FiltersProps) {
   return (
     <div className="filter-section">
@@ -41,6 +45,14 @@ export default function Filters({
 
       <div className="filter-row">
         <div className="genre-chips" role="group" aria-label="Filtrer par genre">
+          <button
+            id="genre-weekend"
+            className={`genre-chip ${weekendOnly ? 'active' : ''}`}
+            onClick={() => onWeekendToggle(!weekendOnly)}
+            aria-pressed={weekendOnly}
+          >
+            🎉 Ce week-end
+          </button>
           {GENRES.map((genre) => (
             <button
               key={genre.id}

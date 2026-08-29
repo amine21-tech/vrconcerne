@@ -13,6 +13,7 @@ import AdminPanel from './components/AdminPanel';
 import ExplorePage from './components/ExplorePage';
 import Toast from './components/Toast';
 import AuthModal from './components/AuthModal';
+import FeaturedRail from './components/FeaturedRail';
 
 import { ARTISTS_STORIES } from './lib/data';
 import { apiFetch } from './lib/apiClient';
@@ -31,6 +32,7 @@ function HomeApp() {
   const [selectedGenre, setSelectedGenre] = useState<GenreType>('Tout');
   const [selectedWilaya, setSelectedWilaya] = useState<string>('Toutes les Wilayas');
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [weekendOnly, setWeekendOnly] = useState<boolean>(false);
   const [bookingEvent, setBookingEvent] = useState<EventItem | null>(null);
   const [showCreateEvent, setShowCreateEvent] = useState<boolean>(false);
   const [showAuthModal, setShowAuthModal] = useState<boolean>(false);
@@ -59,6 +61,7 @@ function HomeApp() {
           genre: selectedGenre === 'Tout' ? undefined : selectedGenre,
           wilaya: selectedWilaya === 'Toutes les Wilayas' ? undefined : selectedWilaya,
           search: searchQuery || undefined,
+          weekendOnly: weekendOnly || undefined,
         },
       })
         .then((res) => setHomeEvents(res.items))
@@ -66,7 +69,7 @@ function HomeApp() {
         .finally(() => setEventsLoading(false));
     }, 300);
     return () => clearTimeout(handle);
-  }, [selectedGenre, selectedWilaya, searchQuery]);
+  }, [selectedGenre, selectedWilaya, searchQuery, weekendOnly]);
 
   // Fil "Explorer" : la grille visuelle complete, sans filtre.
   useEffect(() => {
@@ -167,6 +170,7 @@ function HomeApp() {
                 setStories((prev) => prev.map((s) => (s.id === id ? { ...s, seen: true } : s)));
               }}
             />
+            <FeaturedRail onReserve={handleReserve} />
             <Filters
               selectedGenre={selectedGenre}
               onGenreChange={setSelectedGenre}
@@ -174,6 +178,8 @@ function HomeApp() {
               onWilayaChange={setSelectedWilaya}
               searchQuery={searchQuery}
               onSearchChange={setSearchQuery}
+              weekendOnly={weekendOnly}
+              onWeekendToggle={setWeekendOnly}
             />
             <div className="section-header">
               <span className="section-title">Cette semaine en Algérie</span>

@@ -19,6 +19,14 @@ interface AdminEvent {
   organizerName: string;
 }
 
+interface AdminOrganizer {
+  id: string;
+  email: string;
+  displayName: string;
+  organizerBio: string | null;
+  createdAt: string;
+}
+
 interface AdminStats {
   pendingEvents: number;
   publishedEvents: number;
@@ -27,22 +35,35 @@ interface AdminStats {
   pendingOrganizers: number;
 }
 
+type Tab = 'pending' | 'published' | 'all' | 'organizers';
+
 export default function AdminPanel() {
-  const [activeTab, setActiveTab] = useState<'pending' | 'published' | 'all'>('pending');
+  const [activeTab, setActiveTab] = useState<Tab>('pending');
   const [events, setEvents] = useState<AdminEvent[]>([]);
+  const [organizers, setOrganizers] = useState<AdminOrganizer[]>([]);
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const status = activeTab === 'all' ? undefined : activeTab;
-      const [eventsRes, statsRes] = await Promise.all([
-        apiFetch<{ items: AdminEvent[] }>('/admin/events', { query: { status } }),
-        apiFetch<AdminStats>('/admin/stats'),
-      ]);
-      setEvents(eventsRes.items);
-      setStats(statsRes);
+      const statsPromise = apiFetch<AdminStats>('/admin/stats');
+      if (activeTab === 'organizers') {
+        const [organizersRes, statsRes] = await Promise.all([
+          apiFetch<{ items: AdminOrganizer[] }>('/admin/organizers', { query: { status: 'pending' } }),
+          statsPromise,
+        ]);
+        setOrganizers(organizersRes.items);
+        setStats(statsRes);
+      } else {
+        const status = activeTab === 'all' ? undefined : activeTab;
+        const [eventsRes, statsRes] = await Promise.all([
+          apiFetch<{ items: AdminEvent[] }>('/admin/events', { query: { status } }),
+          statsPromise,
+        ]);
+        setEvents(eventsRes.items);
+        setStats(statsRes);
+      }
     } finally {
       setLoading(false);
     }
@@ -62,6 +83,16 @@ export default function AdminPanel() {
     load();
   };
 
+  const handleApproveOrganizer = async (id: string) => {
+    await apiFetch(`/admin/organizers/${id}/approve`, { method: 'POST' });
+    load();
+  };
+
+  const handleRejectOrganizer = async (id: string) => {
+    await apiFetch(`/admin/organizers/${id}/reject`, { method: 'POST' });
+    load();
+  };
+
   return (
     <div>
       <div style={{ padding: '16px 16px 0' }}>
@@ -69,14 +100,14 @@ export default function AdminPanel() {
           🛡️ Panneau d'Administration VRconcerneDZ
         </h2>
         <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
-          Modération des événements et suivi global de l'application
+          Modération des événements, partenariats et suivi global de l'application
         </p>
       </div>
 
       <div className="stats-grid">
         <div className="stat-card">
           <div className="stat-value">{stats?.pendingEvents ?? '—'}</div>
-          <div className="stat-label">En attente</div>
+          <div className="stat-label">Événements en attente</div>
         </div>
         <div className="stat-card">
           <div className="stat-value">{stats?.publishedEvents ?? '—'}</div>
@@ -113,6 +144,12 @@ export default function AdminPanel() {
         >
           Tous
         </button>
+        <button
+          className={`admin-tab ${activeTab === 'organizers' ? 'active' : ''}`}
+          onClick={() => setActiveTab('organizers')}
+        >
+          Partenaires{stats && stats.pendingOrganizers > 0 ? ` (${stats.pendingOrganizers})` : ''}
+        </button>
       </div>
 
       <div style={{ padding: 16 }}>
@@ -120,6 +157,50 @@ export default function AdminPanel() {
           <div className="empty-state" style={{ padding: 30 }}>
             <div className="empty-state-title">Chargement...</div>
           </div>
+        ) : activeTab === 'organizers' ? (
+          organizers.length === 0 ? (
+            <div className="empty-state" style={{ padding: 30 }}>
+              <div className="empty-state-icon">🤝</div>
+              <div className="empty-state-title">Aucune demande de partenariat en attente</div>
+            </div>
+          ) : (
+            organizers.map((org) => (
+              <div key={org.id} className="admin-event-card" id={`admin-organizer-${org.id}`}>
+                <div className="admin-event-header">
+                  <div>
+                    <div className="admin-event-title">{org.displayName}</div>
+                    <div className="admin-event-meta">
+                      ✉️ {org.email} · 📅 demande du {formatDateShort(org.createdAt)}
+                    </div>
+                  </div>
+                  <span className="status-badge pending">pending</span>
+                </div>
+
+                {org.organizerBio && (
+                  <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 8, lineHeight: 1.4 }}>
+                    {org.organizerBio}
+                  </p>
+                )}
+
+                <div className="admin-actions">
+                  <button
+                    className="btn-success"
+                    onClick={() => handleApproveOrganizer(org.id)}
+                    id={`btn-approve-organizer-${org.id}`}
+                  >
+                    ✅ Approuver le partenariat
+                  </button>
+                  <button
+                    className="btn-danger"
+                    onClick={() => handleRejectOrganizer(org.id)}
+                    id={`btn-reject-organizer-${org.id}`}
+                  >
+                    ❌ Refuser
+                  </button>
+                </div>
+              </div>
+            ))
+          )
         ) : events.length === 0 ? (
           <div className="empty-state" style={{ padding: 30 }}>
             <div className="empty-state-icon">📋</div>

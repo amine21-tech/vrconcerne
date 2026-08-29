@@ -10,6 +10,7 @@ export const GENRES: { id: GenreType; label: string; emoji: string }[] = [
   { id: 'Gnawa', label: '🌙 Gnawa', emoji: '🌙' },
   { id: 'Sahraoui', label: '🏜️ Sahraoui', emoji: '🏜️' },
   { id: 'Pop', label: '⭐ Pop', emoji: '⭐' },
+  { id: 'Soiree', label: '🎉 Soirées', emoji: '🎉' },
 ];
 
 export const WILAYAS: string[] = [

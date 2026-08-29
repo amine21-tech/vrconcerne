@@ -1,4 +1,14 @@
-export type GenreType = 'Tout' | 'RAI' | 'Jazz' | 'Comedy' | 'Chaabi' | 'Rap DZ' | 'Gnawa' | 'Sahraoui' | 'Pop';
+export type GenreType =
+  | 'Tout'
+  | 'RAI'
+  | 'Jazz'
+  | 'Comedy'
+  | 'Chaabi'
+  | 'Rap DZ'
+  | 'Gnawa'
+  | 'Sahraoui'
+  | 'Pop'
+  | 'Soiree';
 
 export type RoleType = 'client' | 'organizer' | 'admin';
 
