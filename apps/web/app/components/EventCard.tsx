@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { Heart, MessageCircle, Send, Bookmark, MapPin, Calendar, Users } from 'lucide-react';
 import { EventItem } from '../types';
-import { formatDateShort } from '../lib/data';
+import { formatDateShort, genreLabel } from '../lib/data';
 
 interface EventCardProps {
   event: EventItem;
@@ -67,7 +67,7 @@ export default function EventCard({
           </div>
         </div>
         <span className="genre-badge" data-genre={event.genre}>
-          {event.genre}
+          {genreLabel(event.genre)}
         </span>
       </div>
 

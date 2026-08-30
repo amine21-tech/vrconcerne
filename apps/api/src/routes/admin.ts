@@ -11,7 +11,7 @@ const routes: FastifyPluginAsync = async (app) => {
       SELECT e.id, e.title, e.singer, e.genre, e.description,
              to_char(e.event_date, 'YYYY-MM-DD') AS date, to_char(e.event_time, 'HH24:MI') AS time,
              e.venue, e.wilaya, e.total_seats AS "totalSeats", e.available_seats AS "availableSeats",
-             e.price, e.emoji, e.status, e.created_at AS "createdAt",
+             e.price, e.emoji, e.status, e.featured, e.created_at AS "createdAt",
              u.display_name AS "organizerName"
       FROM events e
       JOIN users u ON u.id = e.organizer_id
@@ -21,6 +21,26 @@ const routes: FastifyPluginAsync = async (app) => {
     `);
     return { items: rows };
   });
+
+  /**
+   * Mise en avant manuelle dans "Meilleurs de la semaine" (FeaturedRail).
+   * Reservee aux evenements publies : mettre en avant un evenement encore en
+   * attente de moderation n'a pas de sens, il n'est pas visible du public.
+   */
+  app.post<{ Params: { id: string }; Body: { featured: boolean } }>(
+    '/admin/events/:id/feature',
+    { preHandler: [app.requireRole('admin')] },
+    async (req) => {
+      const featured = req.body?.featured !== false;
+      const rows = (await db.execute(sql`
+        UPDATE events SET featured = ${featured}
+        WHERE id = ${req.params.id} AND status = 'published'
+        RETURNING id, featured
+      `)) as unknown as { id: string; featured: boolean }[];
+      if (rows.length === 0) throw notFound("Evenement introuvable ou pas encore publie.");
+      return rows[0];
+    },
+  );
 
   app.post<{ Params: { id: string } }>(
     '/admin/events/:id/approve',

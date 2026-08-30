@@ -18,6 +18,7 @@ import FeaturedRail from './components/FeaturedRail';
 import { ARTISTS_STORIES } from './lib/data';
 import { apiFetch } from './lib/apiClient';
 import { AuthProvider, useAuth } from './lib/AuthContext';
+import { ThemeProvider } from './lib/ThemeContext';
 import { EventItem, GenreType, ToastMessage, ArtistStory } from './types';
 
 function HomeApp() {
@@ -263,8 +264,10 @@ function HomeApp() {
 
 export default function Page() {
   return (
-    <AuthProvider>
-      <HomeApp />
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <HomeApp />
+      </AuthProvider>
+    </ThemeProvider>
   );
 }

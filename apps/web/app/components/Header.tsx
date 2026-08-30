@@ -1,8 +1,9 @@
 'use client';
 
 import React from 'react';
-import { Bell, LogOut } from 'lucide-react';
+import { Bell, LogOut, Moon, Sun } from 'lucide-react';
 import { useAuth } from '../lib/AuthContext';
+import { useTheme } from '../lib/ThemeContext';
 
 const ROLE_LABELS: Record<string, string> = {
   client: 'Client',
@@ -16,6 +17,7 @@ interface HeaderProps {
 
 export default function Header({ onRequestAuth }: HeaderProps) {
   const { user, logout } = useAuth();
+  const { theme, toggleTheme } = useTheme();
 
   return (
     <header className="app-header">
@@ -39,6 +41,15 @@ export default function Header({ onRequestAuth }: HeaderProps) {
             Se connecter
           </button>
         )}
+
+        <button
+          className="icon-btn"
+          aria-label={theme === 'dark' ? 'Passer en mode normal' : 'Passer en mode nuit'}
+          onClick={toggleTheme}
+          id="btn-theme-toggle"
+        >
+          {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+        </button>
 
         <button className="icon-btn" aria-label="Notifications" id="btn-notifications">
           <Bell size={18} />

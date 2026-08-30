@@ -12,12 +12,21 @@ interface CreateEventModalProps {
   role: RoleType;
 }
 
+/** Deux semaines a partir d'aujourd'hui, au format AAAA-MM-JJ attendu par <input type="date">. */
+function defaultEventDate(): string {
+  const d = new Date();
+  d.setDate(d.getDate() + 14);
+  return d.toISOString().slice(0, 10);
+}
+
+const TODAY = new Date().toISOString().slice(0, 10);
+
 export default function CreateEventModal({ onClose, onSubmit, role }: CreateEventModalProps) {
   const [singer, setSinger] = useState('');
   const [title, setTitle] = useState('');
   const [genre, setGenre] = useState<GenreType>('RAI');
   const [description, setDescription] = useState('');
-  const [date, setDate] = useState('2026-08-15');
+  const [date, setDate] = useState(defaultEventDate);
   const [time, setTime] = useState('21:00');
   const [venue, setVenue] = useState('');
   const [wilaya, setWilaya] = useState('Alger');
@@ -188,6 +197,7 @@ export default function CreateEventModal({ onClose, onSubmit, role }: CreateEven
                 className="form-input"
                 type="date"
                 value={date}
+                min={TODAY}
                 onChange={(e) => setDate(e.target.value)}
                 required
               />

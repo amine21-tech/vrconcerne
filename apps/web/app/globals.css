@@ -51,6 +51,7 @@
   --gnawa: linear-gradient(135deg, #EC4899, #BE185D);
   --sahraoui: linear-gradient(135deg, #14B8A6, #0D9488);
   --pop: linear-gradient(135deg, #F472B6, #EC4899);
+  --soiree: linear-gradient(135deg, #6366F1, #A855F7);
 
   /* Spacing */
   --radius-sm: 8px;
@@ -72,6 +73,36 @@
 
   /* App Container */
   --max-width: 430px;
+}
+
+/* ── Mode clair ── bascule via le bouton soleil/lune de l'en-tete
+   (Header.tsx / ThemeContext.tsx). Tout le reste du fichier lit ces memes
+   variables, donc rien d'autre n'a besoin d'etre duplique ici. */
+:root[data-theme="light"] {
+  --bg-primary: #F7F7FB;
+  --bg-secondary: #FFFFFF;
+  --bg-card: #FFFFFF;
+  --bg-card-hover: #F1F0F9;
+  --bg-modal: #FFFFFF;
+  --bg-input: #F2F1F9;
+  --bg-overlay: rgba(30, 27, 46, 0.45);
+
+  --text-primary: #16161F;
+  --text-secondary: #57576B;
+  --text-muted: #8A8AA3;
+
+  --border-primary: rgba(139, 92, 246, 0.25);
+  --border-subtle: rgba(20, 20, 30, 0.08);
+  --border-card: rgba(20, 20, 30, 0.10);
+
+  --glass-bg: rgba(255, 255, 255, 0.85);
+
+  --shadow-card: 0 4px 24px rgba(20, 20, 30, 0.08);
+  --shadow-modal: 0 20px 60px rgba(20, 20, 30, 0.18);
+}
+
+:root[data-theme="light"] .app-shell {
+  box-shadow: 0 0 60px rgba(20, 20, 30, 0.10);
 }
 
 /* ── Reset & Base ── */
@@ -198,34 +229,6 @@ body {
   background: var(--brand-secondary);
   border-radius: 50%;
   border: 2px solid var(--bg-primary);
-}
-
-/* ── Role Selector ── */
-.role-selector {
-  display: flex;
-  gap: 4px;
-  background: var(--bg-card);
-  padding: 3px;
-  border-radius: var(--radius-full);
-  border: 1px solid var(--border-card);
-}
-
-.role-btn {
-  padding: 4px 10px;
-  border-radius: var(--radius-full);
-  border: none;
-  font-size: 11px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all var(--transition-fast);
-  color: var(--text-muted);
-  background: transparent;
-  white-space: nowrap;
-}
-
-.role-btn.active {
-  background: var(--brand-gradient);
-  color: white;
 }
 
 /* ── Stories / Highlights ── */
@@ -387,6 +390,7 @@ body {
 .genre-chip[data-genre="Gnawa"].active { background: var(--gnawa); }
 .genre-chip[data-genre="Sahraoui"].active { background: var(--sahraoui); }
 .genre-chip[data-genre="Pop"].active { background: var(--pop); }
+.genre-chip[data-genre="Soiree"].active { background: var(--soiree); }
 .genre-chip[data-genre="Tout"].active { background: var(--brand-gradient); }
 
 .wilaya-select {
@@ -516,6 +520,7 @@ body {
 .genre-badge[data-genre="Gnawa"] { background: #EC4899; }
 .genre-badge[data-genre="Sahraoui"] { background: #14B8A6; }
 .genre-badge[data-genre="Pop"] { background: #F472B6; }
+.genre-badge[data-genre="Soiree"] { background: #6366F1; }
 
 /* ── Card Banner Image ── */
 .banner-wrapper {

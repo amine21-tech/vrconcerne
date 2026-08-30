@@ -1,10 +1,6 @@
 import { z } from 'zod';
 
-/**
- * Genres acceptes par la base (voir la contrainte CHECK de la table events).
- * 'Soiree' est prevu pour la Phase 3 (front pas encore branche dessus) mais
- * deja valide ici pour eviter une seconde migration.
- */
+/** Genres acceptes par la base (voir la contrainte CHECK de la table events). */
 export const GENRE_VALUES = [
   'RAI',
   'Jazz',

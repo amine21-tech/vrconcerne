@@ -13,6 +13,12 @@ export const GENRES: { id: GenreType; label: string; emoji: string }[] = [
   { id: 'Soiree', label: '🎉 Soirées', emoji: '🎉' },
 ];
 
+/** Libelle affichable d'un genre, sans l'emoji du chip de filtre (ex: "Soiree" -> "Soirées"). */
+export const genreLabel = (genre: GenreType): string => {
+  const found = GENRES.find((g) => g.id === genre);
+  return found ? found.label.replace(/^\S+\s*/, '') : genre;
+};
+
 export const WILAYAS: string[] = [
   'Toutes les Wilayas',
   'Alger', 'Oran', 'Constantine', 'Annaba', 'Béjaïa',

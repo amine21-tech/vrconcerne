@@ -1,7 +1,7 @@
 import { sql } from 'drizzle-orm';
 import type { FastifyPluginAsync } from 'fastify';
 import { db } from '../db/client.js';
-import { forbidden, notFound, parse } from '../lib/http.js';
+import { badRequest, forbidden, notFound, parse } from '../lib/http.js';
 import { createEventInput, eventsQuery } from '../lib/validation.js';
 
 const EVENT_COLUMNS = sql`
@@ -72,6 +72,9 @@ const routes: FastifyPluginAsync = async (app) => {
   /** Soumission d'un evenement : publie immediatement pour un admin, en attente sinon. */
   app.post('/events', { preHandler: [app.requireAuth] }, async (req, reply) => {
     const input = parse(createEventInput, req.body);
+    if (input.eventDate < new Date().toISOString().slice(0, 10)) {
+      throw badRequest('date_passee', "La date de l'evenement ne peut pas etre dans le passe.");
+    }
     const status = req.authUser!.role === 'admin' ? 'published' : 'pending';
 
     const rows = await db.execute(sql`

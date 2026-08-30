@@ -16,6 +16,7 @@ interface AdminEvent {
   totalSeats: number;
   description: string;
   status: 'pending' | 'published' | 'rejected';
+  featured: boolean;
   organizerName: string;
 }
 
@@ -80,6 +81,11 @@ export default function AdminPanel() {
 
   const handleReject = async (id: string) => {
     await apiFetch(`/admin/events/${id}/reject`, { method: 'POST' });
+    load();
+  };
+
+  const handleToggleFeatured = async (id: string, featured: boolean) => {
+    await apiFetch(`/admin/events/${id}/feature`, { method: 'POST', body: { featured: !featured } });
     load();
   };
 
@@ -243,6 +249,18 @@ export default function AdminPanel() {
                     id={`btn-reject-${ev.id}`}
                   >
                     ❌ Refuser
+                  </button>
+                </div>
+              )}
+
+              {ev.status === 'published' && (
+                <div className="admin-actions">
+                  <button
+                    className={ev.featured ? 'btn-danger' : 'btn-success'}
+                    onClick={() => handleToggleFeatured(ev.id, ev.featured)}
+                    id={`btn-feature-${ev.id}`}
+                  >
+                    {ev.featured ? '☆ Retirer de la une' : '⭐ Mettre en avant cette semaine'}
                   </button>
                 </div>
               )}
